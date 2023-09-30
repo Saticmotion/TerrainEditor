@@ -6,7 +6,7 @@ using UnityEngine;
 public class Chunk : MonoBehaviour
 {
 	public Mesh mesh;
-	private MeshCollider collider;
+	private new MeshCollider collider;
 
 	private Vector2Int sizeInQuads;
 	private Vector2Int sizeInVerts;
@@ -101,7 +101,6 @@ public class Chunk : MonoBehaviour
 		mesh.vertices = vertices;
 		mesh.RecalculateNormals();
 		mesh.RecalculateBounds();
-		collider.sharedMesh = mesh;
 	}
 
 	public void SetHeight(int vertexPos, float height)

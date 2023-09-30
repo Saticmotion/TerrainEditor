@@ -7,6 +7,7 @@ public class TerrainEditor : MonoBehaviour
 	public GameObject chunkPrefab;
 
 	private GameObject chunkHolder;
+	private Material chunkMaterial;
 	private List<Chunk> chunks = new List<Chunk>();
 	private const int terrainSize = 64;
 	private const float terrainCellSize = .25f;
@@ -16,7 +17,7 @@ public class TerrainEditor : MonoBehaviour
 
 	private LayerMask terrainLayer;
 
-	private float brushSize = 2f;
+	private float brushSize = 5f;
 	
 
 	private void Awake()
@@ -50,8 +51,8 @@ public class TerrainEditor : MonoBehaviour
 				Chunk chunk;
 
 				//NOTE(Simon): These checks are used to cache mesh generation results. Each type of mesh is generated once and then copied.
-				//NOTE(Simon): The types are full, top, right and top-right chunk.
-				//NOTE(Simon): I.e. the chunks at the top and right edges are smaller than a full chunk.
+				//NOTE(cont.): The types are full, top, right and top-right chunk.
+				//NOTE(cont.): I.e. the chunks at the top and right edges are smaller than a full chunk.
 				if (doingFullChunk)
 				{
 					if (fullChunk == null)
@@ -107,9 +108,9 @@ public class TerrainEditor : MonoBehaviour
 				chunks.Add(chunk);
 			}
 		}
-	}
 
-	private Vector3 mouseHit;
+		chunkMaterial = chunks[0].GetComponent<Renderer>().sharedMaterial;
+	}
 
 	void Update()
 	{
@@ -135,14 +136,8 @@ public class TerrainEditor : MonoBehaviour
 		}
 
 		Physics.Raycast(ray, out var highlightHit, Mathf.Infinity, terrainLayer);
-		mouseHit = highlightHit.point;
-		chunks[0].GetComponent<Renderer>().sharedMaterial.SetVector("_MousePos", highlightHit.point);
-		chunks[0].GetComponent<Renderer>().sharedMaterial.SetFloat("_BrushSize", brushSize);
-	}
-
-	private void OnDrawGizmos()
-	{
-		Gizmos.DrawSphere(mouseHit, .1f);
+		chunkMaterial.SetVector("_MousePos", highlightHit.point);
+		chunkMaterial.SetFloat("_BrushSize", brushSize);
 	}
 
 	private void FixEdgeNormals()
