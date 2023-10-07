@@ -120,6 +120,11 @@ public class TerrainEditor : MonoBehaviour
 		var mousePos = Mouse.current.position.ReadValue();
 		var ray = Camera.main.ScreenPointToRay(mousePos);
 
+		if (Mouse.current.scroll.value.y != 0 && Keyboard.current.ctrlKey.isPressed)
+		{
+			brushRadius += 0.25f * Mouse.current.scroll.value.normalized.y;
+			brushRadius = Mathf.Clamp(brushRadius, 0.25f, 10f);
+			ResizeSphereCastBuffer();
 		}
 
 		if (Mouse.current.leftButton.isPressed)

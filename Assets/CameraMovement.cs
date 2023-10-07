@@ -26,7 +26,10 @@ public class CameraMovement : MonoBehaviour
 			delta.z -= 1f;
 		}
 
-		delta.y = -Mouse.current.scroll.ReadValue().y * .1f;
+		if (!keyboard.ctrlKey.isPressed)
+		{
+			delta.y = -Mouse.current.scroll.ReadValue().y * .1f;
+		}
 
 		transform.position += 5 * delta * Time.deltaTime;
 	}
