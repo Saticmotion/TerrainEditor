@@ -9,7 +9,8 @@ public class TerrainEditor : MonoBehaviour
 	private GameObject chunkHolder;
 	private Material chunkMaterial;
 	private List<Chunk> chunks = new List<Chunk>();
-	private const int terrainSize = 64;
+	private RaycastHit[] sphereCastBuffer;
+	private const int terrainSize = 71;
 	private const float terrainCellSize = .25f;
 	private const int chunkSize = 9;
 	private float numChunksX;
@@ -17,7 +18,7 @@ public class TerrainEditor : MonoBehaviour
 
 	private LayerMask terrainLayer;
 
-	private float brushSize = 5f;
+	private float brushRadius = 2f;
 	
 
 	private void Awake()
@@ -25,6 +26,8 @@ public class TerrainEditor : MonoBehaviour
 		terrainLayer = LayerMask.GetMask("Terrain");
 
 		chunkHolder = new GameObject("Terrain");
+
+		ResizeSphereCastBuffer();
 	}
 
 	void Start()
@@ -117,27 +120,30 @@ public class TerrainEditor : MonoBehaviour
 		var mousePos = Mouse.current.position.ReadValue();
 		var ray = Camera.main.ScreenPointToRay(mousePos);
 
+		}
+
 		if (Mouse.current.leftButton.isPressed)
 		{
 			float amount = 2f;
 			float direction = Keyboard.current.shiftKey.ReadValue() > 0 ? -1 : 1;
 
-			var chunkHits = Physics.SphereCastAll(ray, brushSize, Mathf.Infinity, terrainLayer);
+			int chunkHits = Physics.SphereCastNonAlloc(ray, brushRadius, sphereCastBuffer, Mathf.Infinity, terrainLayer);
 			
 			if (Physics.Raycast(ray, out var mouseHit, Mathf.Infinity, terrainLayer))
 			{
-				foreach (var hit in chunkHits)
+				for (int i = 0; i < chunkHits; i++)
 				{
+					var hit = sphereCastBuffer[i];
 					var chunk = hit.transform.GetComponent<Chunk>();
 
-					chunk.IncreaseHeight(mouseHit.point, brushSize, direction * amount * Time.deltaTime);
+					chunk.IncreaseHeight(mouseHit.point, brushRadius, direction * amount * Time.deltaTime);
 				}
 			}
 		}
 
 		Physics.Raycast(ray, out var highlightHit, Mathf.Infinity, terrainLayer);
 		chunkMaterial.SetVector("_MousePos", highlightHit.point);
-		chunkMaterial.SetFloat("_BrushSize", brushSize);
+		chunkMaterial.SetFloat("_BrushSize", brushRadius);
 	}
 
 	private void FixEdgeNormals()
@@ -171,5 +177,16 @@ public class TerrainEditor : MonoBehaviour
 		var terrainCell = new Vector2Int((int)(pos.x / terrainCellSize), (int)(pos.z / terrainCellSize));
 		int chunkIndex = terrainCell.y / chunkSize * numChunksX + terrainCell.x / chunkSize;
 		return chunkIndex;
+	}
+
+	private void ResizeSphereCastBuffer()
+	{
+		int chunksPerAxis = Mathf.CeilToInt(brushRadius * 2f / terrainCellSize / chunkSize) + 1;
+		int bufferSize = chunksPerAxis * chunksPerAxis;
+		if (sphereCastBuffer == null || bufferSize > sphereCastBuffer.Length)
+		{
+			Debug.Log($"Resizing. Now {bufferSize} long");
+			sphereCastBuffer = new RaycastHit[bufferSize];
+		}
 	}
 }
