@@ -10,16 +10,19 @@ public class TerrainEditor : MonoBehaviour
 	private Material chunkMaterial;
 	private List<Chunk> chunks = new List<Chunk>();
 	private RaycastHit[] sphereCastBuffer;
-	private const int terrainSize = 71;
+	private const int terrainSize = 100;
 	private const float terrainCellSize = .25f;
-	private const int chunkSize = 9;
+	private const int chunkSizeQuads = 20;
 	private float numChunksX;
 	private float numChunksY;
 
 	private LayerMask terrainLayer;
 
 	private float brushRadius = 2f;
-	
+
+	List<Vector3> normalBuffer1 = new List<Vector3>((chunkSizeQuads + 1) * (chunkSizeQuads + 1));
+	List<Vector3> normalBuffer2 = new List<Vector3>((chunkSizeQuads + 1) * (chunkSizeQuads + 1));
+
 
 	private void Awake()
 	{
@@ -32,8 +35,8 @@ public class TerrainEditor : MonoBehaviour
 
 	void Start()
 	{
-		numChunksX = terrainSize / (float)chunkSize;
-		numChunksY = terrainSize / (float)chunkSize;
+		numChunksX = terrainSize / (float)chunkSizeQuads;
+		numChunksY = terrainSize / (float)chunkSizeQuads;
 
 		Chunk fullChunk = null;
 		Chunk rightChunk = null;
@@ -44,12 +47,12 @@ public class TerrainEditor : MonoBehaviour
 			for (int x = 0; x < numChunksX; x++)
 			{
 				//NOTE(Simon): Choose smallest of: full chunk or leftover (i.e. a top or right edge chunk)
-				int chunkWidth = Mathf.Min(chunkSize, terrainSize - (x * chunkSize));
-				int chunkHeight = Mathf.Min(chunkSize, terrainSize - (y * chunkSize));
+				int chunkWidth = SizeForIndex(x, chunkSizeQuads, terrainSize);
+				int chunkHeight = SizeForIndex(y, chunkSizeQuads, terrainSize);
 
-				bool doingFullChunk = chunkWidth == chunkSize && chunkHeight == chunkSize;
-				bool doingRightChunk = chunkWidth < chunkSize && chunkHeight == chunkSize;
-				bool doingTopChunk = chunkWidth == chunkSize && chunkHeight < chunkSize;
+				bool doingFullChunk = chunkWidth == chunkSizeQuads && chunkHeight == chunkSizeQuads;
+				bool doingRightChunk = chunkWidth < chunkSizeQuads && chunkHeight == chunkSizeQuads;
+				bool doingTopChunk = chunkWidth == chunkSizeQuads && chunkHeight < chunkSizeQuads;
 
 				Chunk chunk;
 
@@ -105,7 +108,7 @@ public class TerrainEditor : MonoBehaviour
 					chunk.Init(chunkWidth, chunkHeight, terrainCellSize, true);
 				}
 
-				chunk.transform.position = new Vector3(x * chunkSize * terrainCellSize, 0, y * chunkSize * terrainCellSize);
+				chunk.transform.position = new Vector3(x * chunkSizeQuads * terrainCellSize, 0, y * chunkSizeQuads * terrainCellSize);
 				chunk.transform.SetParent(chunkHolder.transform);
 				chunk.name = $"Chunk{x}-{y}";
 				chunks.Add(chunk);
@@ -113,6 +116,8 @@ public class TerrainEditor : MonoBehaviour
 		}
 
 		chunkMaterial = chunks[0].GetComponent<Renderer>().sharedMaterial;
+
+
 	}
 
 	void Update()
@@ -143,6 +148,7 @@ public class TerrainEditor : MonoBehaviour
 
 					chunk.IncreaseHeight(mouseHit.point, brushRadius, direction * amount * Time.deltaTime);
 				}
+				FixEdgeNormals();
 			}
 		}
 
@@ -153,13 +159,73 @@ public class TerrainEditor : MonoBehaviour
 
 	private void FixEdgeNormals()
 	{
-		for (int y = 0; y < numChunksY; y++)
+		for (int y = 0; y < numChunksY - 1; y++)
 		{
-			for (int x = 0; x < numChunksX; x++)
+			for (int x = 0; x < numChunksX - 1; x++)
 			{
-				//var chunk = chunks[y * numChunksY + x];
+				int chunkCenterIndex = y * Mathf.CeilToInt(numChunksY) + x;
+				FixEdgeNormalsNorth(chunkCenterIndex);
+				FixEdgeNormalsEast(chunkCenterIndex);
 			}
 		}
+
+		//NOTE(Simon): Update topmost row. Special case because it has no chunks north of it
+		for (int x = 0; x < numChunksX - 1; x++)
+		{
+			int chunkCenterIndex = ((int)numChunksY - 1) * Mathf.CeilToInt(numChunksY) + x;
+			FixEdgeNormalsEast(chunkCenterIndex);
+		}
+
+		//NOTE(Simon): Update rightmost row. Special case because it has no chunks east of it
+		for (int y = 0; y < numChunksY - 1; y++)
+		{
+			int chunkCenterIndex = y * Mathf.CeilToInt(numChunksY) + ((int)numChunksX - 1);
+			FixEdgeNormalsNorth(chunkCenterIndex);
+		}
+	}
+
+	private void FixEdgeNormalsNorth(int chunkCenterIndex)
+	{ 
+		const int chunkSizeVerts = chunkSizeQuads + 1;
+
+		int chunkNorthIndex = chunkCenterIndex + Mathf.CeilToInt(numChunksY);
+		chunks[chunkCenterIndex].mesh.GetNormals(normalBuffer1);
+		chunks[chunkNorthIndex].mesh.GetNormals(normalBuffer2);
+
+		for (int i = 0; i < chunkSizeVerts; i++)
+		{
+			int indexCenter = chunkSizeVerts * (chunkSizeVerts - 1) + i;
+			int indexNorth = i;
+			var sum = normalBuffer1[indexCenter] + normalBuffer2[indexNorth];
+			var avg = sum / 2;
+			normalBuffer1[indexCenter] = avg;
+			normalBuffer2[indexNorth] = avg;
+		}
+
+		chunks[chunkCenterIndex].mesh.SetNormals(normalBuffer1);
+		chunks[chunkNorthIndex].mesh.SetNormals(normalBuffer2);
+	}
+
+	private void FixEdgeNormalsEast(int chunkCenterIndex)
+	{
+		const int chunkSizeVerts = chunkSizeQuads + 1;
+
+		int chunkEastIndex = chunkCenterIndex + 1;
+		chunks[chunkCenterIndex].mesh.GetNormals(normalBuffer1);
+		chunks[chunkEastIndex].mesh.GetNormals(normalBuffer2);
+
+		for (int i = 0; i < chunkSizeVerts; i++)
+		{
+			int indexCenter = i * chunkSizeVerts + (chunkSizeVerts - 1);
+			int indexEast = i * chunkSizeVerts;
+			var sum = normalBuffer1[indexCenter] + normalBuffer2[indexEast];
+			var avg = sum / 2;
+			normalBuffer1[indexCenter] = avg;
+			normalBuffer2[indexEast] = avg;
+		}
+
+		chunks[chunkCenterIndex].mesh.SetNormals(normalBuffer1);
+		chunks[chunkEastIndex].mesh.SetNormals(normalBuffer2);
 	}
 
 	private int WorldPosToVertexIndex(int chunkIndex, Vector3 pos)
@@ -170,28 +236,32 @@ public class TerrainEditor : MonoBehaviour
 
 		var offset = pos2d - chunkPos;
 		var vertexPos = Vector2Int.RoundToInt(offset / terrainCellSize);
-		var vertexIndex = vertexPos.y * (chunkSize + 1) + vertexPos.x;
+		var vertexIndex = vertexPos.y * (chunkSizeQuads + 1) + vertexPos.x;
 
 		return vertexIndex;
 	}
 
 	private int WorldPosToChunkIndex(Vector3 pos)
 	{
-		int numChunksX = Mathf.CeilToInt(terrainSize / (float)chunkSize);
+		int numChunksX = Mathf.CeilToInt(terrainSize / (float)chunkSizeQuads);
 
 		var terrainCell = new Vector2Int((int)(pos.x / terrainCellSize), (int)(pos.z / terrainCellSize));
-		int chunkIndex = terrainCell.y / chunkSize * numChunksX + terrainCell.x / chunkSize;
+		int chunkIndex = terrainCell.y / chunkSizeQuads * numChunksX + terrainCell.x / chunkSizeQuads;
 		return chunkIndex;
 	}
 
 	private void ResizeSphereCastBuffer()
 	{
-		int chunksPerAxis = Mathf.CeilToInt(brushRadius * 2f / terrainCellSize / chunkSize) + 1;
+		int chunksPerAxis = Mathf.CeilToInt(brushRadius * 2f / terrainCellSize / chunkSizeQuads) + 1;
 		int bufferSize = chunksPerAxis * chunksPerAxis;
 		if (sphereCastBuffer == null || bufferSize > sphereCastBuffer.Length)
 		{
-			Debug.Log($"Resizing. Now {bufferSize} long");
 			sphereCastBuffer = new RaycastHit[bufferSize];
 		}
+	}
+
+	private int SizeForIndex(int value, int chunkSize, int terrainSize)
+	{
+		return Mathf.Min(chunkSize, terrainSize - (value * chunkSize));
 	}
 }

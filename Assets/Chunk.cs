@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(Mesh))]
 [RequireComponent(typeof(MeshFilter))]
@@ -11,6 +12,8 @@ public class Chunk : MonoBehaviour
 	private Vector2Int sizeInQuads;
 	private Vector2Int sizeInVerts;
 	private Vector3[] vertices;
+
+	private const MeshUpdateFlags meshUpdateFlags = MeshUpdateFlags.DontResetBoneBounds | MeshUpdateFlags.DontValidateIndices;
 
 	public void Init(int width, int height, float terrainCellSize, bool generateMesh)
 	{
@@ -92,15 +95,15 @@ public class Chunk : MonoBehaviour
 		mesh.vertices = vertices;
 		mesh.uv = uvs;
 		mesh.triangles = triangles;
-		mesh.RecalculateNormals();
-		mesh.RecalculateBounds();
+		mesh.RecalculateNormals(meshUpdateFlags);
+		mesh.RecalculateBounds(meshUpdateFlags);
 	}
 
 	private void UpdateMesh()
 	{
 		mesh.vertices = vertices;
-		mesh.RecalculateNormals();
-		mesh.RecalculateBounds();
+		mesh.RecalculateNormals(meshUpdateFlags);
+		mesh.RecalculateBounds(meshUpdateFlags);
 	}
 
 	public void SetHeight(int vertexPos, float height)
