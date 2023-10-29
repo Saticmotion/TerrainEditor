@@ -112,24 +112,26 @@ public class Chunk : MonoBehaviour
 		UpdateMesh();
 	}
 
+	
 	//NOTE(Simon): Increase height for all vertices in radius, with sin-shaped falloff
 	public void IncreaseHeight(Vector3 pos, float radius, float height, float maxHeight = Mathf.Infinity)
 	{
 		var pos2d = new Vector2(pos.x, pos.z);
-		var offset2d = new Vector2(transform.position.x, transform.position.z);
+		var offset2d = new Vector2(transform.position.x, transform.position.z) - pos2d;
+		float radiusSqr = radius * radius;
 		for (int i = 0; i < vertices.Length; i++)
 		{
-			var vertexPos2d = new Vector2(vertices[i].x, vertices[i].z);
-			float distance = (vertexPos2d + offset2d - pos2d).magnitude;
-
-			if (distance < radius)
+			var vertexPos2d = new Vector2(vertices[i].x + offset2d.x, vertices[i].z + offset2d.y);
+			float distanceSqr = vertexPos2d.sqrMagnitude;
+	
+			if (distanceSqr < radiusSqr)
 			{
-				float t = 1 - (distance  / radius);
+				float t = 1 - (distanceSqr / radiusSqr);
 				float factor = -(Mathf.Cos(Mathf.PI * t) - 1) / 2;
 				vertices[i].y = Mathf.Min(vertices[i].y + height * factor, maxHeight);
 			}
 		}
-
+	
 		UpdateMesh();
 	}
 }

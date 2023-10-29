@@ -10,9 +10,9 @@ public class TerrainEditor : MonoBehaviour
 	private Material chunkMaterial;
 	private List<Chunk> chunks = new List<Chunk>();
 	private RaycastHit[] sphereCastBuffer;
-	private const int terrainSize = 100;
+	private const int terrainSize = 1000;
 	private const float terrainCellSize = .25f;
-	private const int chunkSizeQuads = 20;
+	private const int chunkSizeQuads = 200;
 	private float numChunksX;
 	private float numChunksY;
 
