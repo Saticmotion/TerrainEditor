@@ -146,7 +146,7 @@ public class TerrainEditor : MonoBehaviour
 					var hit = sphereCastBuffer[i];
 					var chunk = hit.transform.GetComponent<Chunk>();
 
-					chunk.IncreaseHeight(mouseHit.point, brushRadius, direction * amount * Time.deltaTime);
+					chunk.IncreaseHeight(mouseHit.point, brushRadius, direction * amount * Time.deltaTime, 3);
 				}
 				FixEdgeNormals();
 			}
